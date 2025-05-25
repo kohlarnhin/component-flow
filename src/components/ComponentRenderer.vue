@@ -324,15 +324,16 @@
       <div class="p-4">
         <div v-if="paginatedData.list && paginatedData.list.length > 0" class="space-y-4">
           <!-- 表格 -->
-          <div class="overflow-x-auto">
-            <table class="min-w-full table-auto">
+          <div class="overflow-x-auto min-h-96">
+            <table class="min-w-full table-fixed border-collapse">
               <thead>
                 <tr class="border-b border-gray-200 bg-gray-50">
                   <th
                     v-for="column in getPaginatedColumns()"
                     :key="column.key"
                     class="text-left py-3 px-3 text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap"
-                    @click="handleSort(column.key)"
+                    :class="getColumnWidth(column)"
+                    @click="handleSort(column.key, $event)"
                   >
                     <div class="flex items-center space-x-1">
                       <span>{{ column.title }}</span>
@@ -360,12 +361,13 @@
                 <tr
                   v-for="(item, index) in paginatedData.list"
                   :key="index"
-                  class="hover:bg-gray-50 transition-colors"
+                  class="hover:bg-gray-50 transition-colors h-12"
                 >
                   <td
                     v-for="column in getPaginatedColumns()"
                     :key="column.key"
-                    class="py-3 px-3 text-sm text-gray-900 whitespace-nowrap"
+                    class="py-3 px-3 text-sm text-gray-900"
+                    :class="getColumnWidth(column)"
                   >
                     <span v-if="column.key === 'enabled'">
                       <span 
@@ -375,7 +377,12 @@
                         {{ item[column.key] ? '启用' : '禁用' }}
                       </span>
                     </span>
-                    <span v-else>
+                    <span 
+                      v-else 
+                      class="inline-block truncate"
+                      :class="getColumnMaxWidth(column)"
+                      :title="item[column.key] || '-'"
+                    >
                       {{ item[column.key] || '-' }}
                     </span>
                   </td>
@@ -389,7 +396,8 @@
             <div class="text-sm text-gray-500">
               共 {{ paginatedData.total || 0 }} 条记录，第 {{ paginatedData.page || 1 }} / {{ paginatedData.totalPage || 1 }} 页
             </div>
-            <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-1">
+              <!-- 上一页按钮 -->
               <button
                 @click="changePage(paginatedData.page - 1)"
                 :disabled="paginatedData.page <= 1"
@@ -397,9 +405,48 @@
               >
                 上一页
               </button>
-              <span class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded">
-                {{ paginatedData.page || 1 }}
-              </span>
+              
+              <!-- 页码按钮列表 -->
+              <div class="flex items-center space-x-1">
+                <!-- 首页 -->
+                <button
+                  v-if="shouldShowFirstPage"
+                  @click="changePage(1)"
+                  class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                  :class="paginatedData.page === 1 ? 'bg-blue-100 text-blue-700 border-blue-300' : ''"
+                >
+                  1
+                </button>
+                
+                <!-- 首页省略号 -->
+                <span v-if="shouldShowStartEllipsis" class="px-2 text-sm text-gray-400">...</span>
+                
+                <!-- 中间页码 -->
+                <button
+                  v-for="page in visiblePages"
+                  :key="page"
+                  @click="changePage(page)"
+                  class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                  :class="paginatedData.page === page ? 'bg-blue-100 text-blue-700 border-blue-300' : ''"
+                >
+                  {{ page }}
+                </button>
+                
+                <!-- 尾页省略号 -->
+                <span v-if="shouldShowEndEllipsis" class="px-2 text-sm text-gray-400">...</span>
+                
+                <!-- 尾页 -->
+                <button
+                  v-if="shouldShowLastPage"
+                  @click="changePage(paginatedData.totalPage)"
+                  class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                  :class="paginatedData.page === paginatedData.totalPage ? 'bg-blue-100 text-blue-700 border-blue-300' : ''"
+                >
+                  {{ paginatedData.totalPage }}
+                </button>
+              </div>
+              
+              <!-- 下一页按钮 -->
               <button
                 @click="changePage(paginatedData.page + 1)"
                 :disabled="paginatedData.page >= paginatedData.totalPage"
@@ -423,7 +470,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, inject, type ComputedRef } from 'vue'
+import { ref, watch, inject, computed, type ComputedRef } from 'vue'
 import { usePreviewStore } from '@/stores/preview.store'
 import { useCanvasStore } from '@/stores/canvas.store'
 import type { CanvasComponent } from '@/types/global.types'
@@ -482,12 +529,18 @@ const paginatedData = ref({
 
 const currentSort = ref<string>('')
 const sortDirection = ref<'asc' | 'desc' | null>(null)
+// 多字段排序支持
+const sortFields = ref<Array<{field: string, direction: 'asc' | 'desc'}>>([])
+const enableMultiSort = ref(false) // 是否启用多字段排序
 
 // 布尔选择器的响应式状态
 const booleanValue = ref<boolean | null>(null)
 
 // 分页数据加载状态锁定 - 防止无限循环
 const isLoadingPaginatedData = ref(false)
+
+// 防抖定时器
+const debounceTimer = ref<number | null>(null)
 
 // 初始化布尔值
 function initBooleanValue() {
@@ -496,9 +549,43 @@ function initBooleanValue() {
   }
 }
 
-// 监听组件变化，重新初始化布尔值
+// 初始化分页表格状态
+function initializePaginatedTableState() {
+  if (props.component.config.type !== 'paginated-table') return
+  
+  // 恢复排序状态
+  const sortKey = `${getStorageKeyPrefix()}${props.component.id}_currentSort`
+  const sortDirectionKey = `${getStorageKeyPrefix()}${props.component.id}_sortDirection`
+  
+  const storedSort = localStorage.getItem(sortKey)
+  const storedDirection = localStorage.getItem(sortDirectionKey)
+  
+  if (storedSort) {
+    currentSort.value = storedSort
+  }
+  
+  if (storedDirection && storedDirection !== 'null') {
+    sortDirection.value = storedDirection as 'asc' | 'desc'
+  }
+  
+  // 恢复页码状态
+  const pageKey = `${getStorageKeyPrefix()}${props.component.id}_currentPage`
+  const storedPage = localStorage.getItem(pageKey)
+  
+  if (storedPage) {
+    const pageNum = parseInt(storedPage, 10)
+    if (!isNaN(pageNum) && pageNum > 0) {
+      paginatedData.value.page = pageNum
+    }
+  }
+  
+  console.log('🔧 分页表格状态初始化完成 - 排序:', currentSort.value, sortDirection.value, '页码:', paginatedData.value.page)
+}
+
+// 监听组件变化，重新初始化布尔值和分页表格状态
 watch(() => props.component, () => {
   initBooleanValue()
+  initializePaginatedTableState()
 }, { immediate: true })
 
 // 获取存储键前缀（根据上下文区分）
@@ -691,7 +778,7 @@ async function loadPaginatedData() {
         paginatedData.value = {
           list: responseData.list || [],
           total: responseData.total || 0,
-          page: responseData.page || 1,
+          page: paginatedData.value.page, // 保持用户选择的页码，不使用API返回的页码
           totalPage: responseData.totalPage || 1,
           size: responseData.size || paginatedData.value.size
         }
@@ -720,6 +807,14 @@ async function loadPaginatedData() {
     }
   } catch (error) {
     console.error('🚨 加载分页数据失败:', error)
+    
+    // 错误处理：重置为第一页
+    if (paginatedData.value.page > 1) {
+      console.log('🔧 错误恢复：重置到第一页')
+      paginatedData.value.page = 1
+      const pageKey = `${getStorageKeyPrefix()}${props.component.id}_currentPage`
+      localStorage.setItem(pageKey, '1')
+    }
   } finally {
     // 🔓 确保状态总是被释放
     isLoadingPaginatedData.value = false
@@ -751,6 +846,80 @@ function getPaginatedColumns() {
     { key: 'name', title: '名称', sortable: true },
     { key: 'status', title: '状态', sortable: false }
   ]
+}
+
+// 获取列的最大宽度样式
+function getColumnMaxWidth(column: any) {
+  // 根据列的key或类型设置不同的最大宽度
+  const key = column.key
+  
+  // ID类型的列较短
+  if (key === 'id' || key.toLowerCase().includes('id')) {
+    return 'max-w-20'
+  }
+  
+  // 编号类型的列
+  if (key.toLowerCase().includes('number') || key.toLowerCase().includes('code')) {
+    return 'max-w-32'
+  }
+  
+  // 名称类型的列
+  if (key.toLowerCase().includes('name') || key.toLowerCase().includes('title')) {
+    return 'max-w-48'
+  }
+  
+  // 时间类型的列
+  if (key.toLowerCase().includes('time') || key.toLowerCase().includes('date')) {
+    return 'max-w-40'
+  }
+  
+  // 状态类型的列较短
+  if (key.toLowerCase().includes('status') || key.toLowerCase().includes('enabled')) {
+    return 'max-w-24'
+  }
+  
+  // 默认中等宽度
+  return 'max-w-xs'
+}
+
+// 获取列的固定宽度样式（用于表头）
+function getColumnWidth(column: any) {
+  // 根据列的key或类型设置不同的固定宽度
+  const key = column.key
+  const title = column.title || ''
+  
+  // 根据标题长度动态调整最小宽度
+  const titleLength = title.length
+  let baseWidth = 'w-32' // 基础宽度
+  
+  // ID类型的列
+  if (key === 'id' || key.toLowerCase().includes('id')) {
+    baseWidth = titleLength > 4 ? 'w-24' : 'w-20'
+  }
+  // 编号类型的列
+  else if (key.toLowerCase().includes('number') || key.toLowerCase().includes('code')) {
+    baseWidth = titleLength > 6 ? 'w-40' : 'w-32'
+  }
+  // 名称类型的列
+  else if (key.toLowerCase().includes('name') || key.toLowerCase().includes('title')) {
+    baseWidth = titleLength > 8 ? 'w-56' : 'w-48'
+  }
+  // 时间类型的列
+  else if (key.toLowerCase().includes('time') || key.toLowerCase().includes('date')) {
+    baseWidth = titleLength > 6 ? 'w-48' : 'w-40'
+  }
+  // 状态类型的列
+  else if (key.toLowerCase().includes('status') || key.toLowerCase().includes('enabled')) {
+    baseWidth = titleLength > 4 ? 'w-32' : 'w-24'
+  }
+  // 默认根据标题长度调整
+  else {
+    if (titleLength > 10) baseWidth = 'w-48'
+    else if (titleLength > 6) baseWidth = 'w-40'
+    else baseWidth = 'w-32'
+  }
+  
+  return baseWidth
 }
 
 // 获取显示格式
@@ -803,25 +972,37 @@ function hasRequestConfig() {
 }
 
 // 处理排序
-function handleSort(key: string) {
+function handleSort(key: string, event?: MouseEvent) {
   const config = props.component.config
   if (config.type !== 'paginated-table') return
   
   const column = getPaginatedColumns().find(col => col.key === key)
   if (!column || !column.sortable) return
   
-  if (currentSort.value === key) {
-    if (sortDirection.value === null) {
-      sortDirection.value = 'asc'
-    } else if (sortDirection.value === 'asc') {
-      sortDirection.value = 'desc'
-    } else {
-      sortDirection.value = null
-      currentSort.value = ''
-    }
+  // 检查是否按住Ctrl键（多字段排序）
+  const isMultiSort = event?.ctrlKey || event?.metaKey
+  
+  if (isMultiSort && enableMultiSort.value) {
+    // 多字段排序逻辑
+    handleMultiFieldSort(key)
   } else {
-    currentSort.value = key
-    sortDirection.value = 'asc'
+    // 单字段排序逻辑（原有逻辑）
+    if (currentSort.value === key) {
+      if (sortDirection.value === null) {
+        sortDirection.value = 'asc'
+      } else if (sortDirection.value === 'asc') {
+        sortDirection.value = 'desc'
+      } else {
+        sortDirection.value = null
+        currentSort.value = ''
+      }
+    } else {
+      currentSort.value = key
+      sortDirection.value = 'asc'
+    }
+    
+    // 清空多字段排序
+    sortFields.value = []
   }
   
   // 保存排序状态
@@ -831,7 +1012,36 @@ function handleSort(key: string) {
   localStorage.setItem(sortKey, currentSort.value)
   localStorage.setItem(sortDirectionKey, String(sortDirection.value))
   
-  loadPaginatedData()
+  // 防抖加载数据
+  debouncedLoadPaginatedData()
+}
+
+// 处理多字段排序
+function handleMultiFieldSort(key: string) {
+  const existingIndex = sortFields.value.findIndex(item => item.field === key)
+  
+  if (existingIndex >= 0) {
+    // 字段已存在，切换排序方向或移除
+    const existing = sortFields.value[existingIndex]
+    if (existing.direction === 'asc') {
+      existing.direction = 'desc'
+    } else {
+      // 移除该字段
+      sortFields.value.splice(existingIndex, 1)
+    }
+  } else {
+    // 添加新的排序字段
+    sortFields.value.push({ field: key, direction: 'asc' })
+  }
+  
+  // 更新主排序字段（使用第一个排序字段）
+  if (sortFields.value.length > 0) {
+    currentSort.value = sortFields.value[0].field
+    sortDirection.value = sortFields.value[0].direction
+  } else {
+    currentSort.value = ''
+    sortDirection.value = null
+  }
 }
 
 // 获取排序方向
@@ -846,11 +1056,77 @@ function getSortDirection(key: string) {
 function changePage(page: number) {
   if (page < 1 || page > paginatedData.value.totalPage) return
   
+  console.log('🔧 切换页码:', page, '当前页码:', paginatedData.value.page)
+  
   paginatedData.value.page = page
   
   const pageKey = `${getStorageKeyPrefix()}${props.component.id}_currentPage`
   localStorage.setItem(pageKey, String(page))
   
+  console.log('🔧 页码已保存到localStorage:', pageKey, '=', page)
+  
+  // 页码切换立即加载，不需要防抖
   loadPaginatedData()
+}
+
+// 计算可见页码列表
+const visiblePages = computed(() => {
+  const current = paginatedData.value.page
+  const total = paginatedData.value.totalPage
+  const pages: number[] = []
+  
+  if (total <= 7) {
+    // 总页数少于等于7页，显示所有页码（除了首页和尾页，避免重复）
+    for (let i = 2; i < total; i++) {
+      pages.push(i)
+    }
+  } else {
+    // 总页数大于7页，智能显示中间页码
+    const start = Math.max(2, current - 2)
+    const end = Math.min(total - 1, current + 2)
+    
+    for (let i = start; i <= end; i++) {
+      if (i !== 1 && i !== total) { // 避免与首页尾页重复
+        pages.push(i)
+      }
+    }
+  }
+  
+  return pages
+})
+
+// 是否显示首页
+const shouldShowFirstPage = computed(() => {
+  return paginatedData.value.totalPage > 0
+})
+
+// 是否显示尾页
+const shouldShowLastPage = computed(() => {
+  return paginatedData.value.totalPage > 1
+})
+
+// 是否显示开始省略号
+const shouldShowStartEllipsis = computed(() => {
+  const current = paginatedData.value.page
+  const total = paginatedData.value.totalPage
+  return total > 7 && current > 4
+})
+
+// 是否显示结束省略号
+const shouldShowEndEllipsis = computed(() => {
+  const current = paginatedData.value.page
+  const total = paginatedData.value.totalPage
+  return total > 7 && current < total - 3
+})
+
+// 防抖加载分页数据
+function debouncedLoadPaginatedData() {
+  if (debounceTimer.value) {
+    clearTimeout(debounceTimer.value)
+  }
+  
+  debounceTimer.value = setTimeout(() => {
+    loadPaginatedData()
+  }, 300) // 300ms 防抖延迟
 }
 </script> 

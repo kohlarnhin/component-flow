@@ -97,17 +97,50 @@ export const usePreviewStore = defineStore('preview', () => {
     }
 
     // 检查是否有分页表格组件，如果有则添加分页参数
-    const hasPaginatedTable = components.some(comp => comp.config.type === 'paginated-table')
-    if (hasPaginatedTable) {
-      // 添加分页表格的固定参数
-      collected.json.size = 10
-      collected.json.page = 1
-      collected.json.sorts = []
+    const paginatedTableComponent = components.find(comp => comp.config.type === 'paginated-table')
+    if (paginatedTableComponent) {
+      // 获取存储键前缀（根据上下文区分）
+      const storagePrefix = context === 'page' ? 'page_component_' : 'component_'
+      
+      // 获取当前页码
+      const pageKey = `${storagePrefix}${paginatedTableComponent.id}_currentPage`
+      const storedPage = localStorage.getItem(pageKey)
+      const currentPage = storedPage ? parseInt(storedPage, 10) : 1
+      
+      // 获取页面大小
+      const pageSize = ('pageSize' in paginatedTableComponent.config && paginatedTableComponent.config.pageSize) 
+        ? paginatedTableComponent.config.pageSize 
+        : 10
+      
+      // 获取排序状态
+      const sortKey = `${storagePrefix}${paginatedTableComponent.id}_currentSort`
+      const sortDirectionKey = `${storagePrefix}${paginatedTableComponent.id}_sortDirection`
+      const currentSort = localStorage.getItem(sortKey) || ''
+      const sortDirection = localStorage.getItem(sortDirectionKey) || null
+      
+      // 构建排序数组 - 使用字符串格式：正序为"+字段名"，倒序为"-字段名"
+      const sorts: string[] = []
+      if (currentSort && sortDirection && sortDirection !== 'null') {
+        const sortPrefix = sortDirection === 'asc' ? '+' : '-'
+        sorts.push(sortPrefix + currentSort)
+      }
+      
+      // 添加分页表格的参数
+      collected.json.size = pageSize
+      collected.json.page = currentPage
+      collected.json.sorts = sorts
       
       // 初始化search对象
       if (!collected.json.search) {
         collected.json.search = {}
       }
+      
+      console.log('📊 分页表格参数收集:', {
+        page: currentPage,
+        size: pageSize,
+        sorts: sorts,
+        componentId: paginatedTableComponent.id
+      })
     }
 
     components.forEach(component => {
