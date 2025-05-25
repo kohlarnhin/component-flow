@@ -313,10 +313,10 @@
           </div>
           <button
             @click="loadPaginatedData"
-            :disabled="isLoading"
+            :disabled="isLoading || isLoadingPaginatedData"
             class="btn-secondary text-xs py-1 px-3"
           >
-            {{ isLoading ? '加载中...' : '刷新数据' }}
+            {{ (isLoading || isLoadingPaginatedData) ? '加载中...' : '刷新数据' }}
           </button>
         </div>
       </div>
@@ -448,6 +448,25 @@ const canvasStore = useCanvasStore()
 // 注入页面组件列表（独立页面模式使用）
 const pageComponents = inject<ComputedRef<CanvasComponent[]>>('pageComponents', ref([]))
 
+// 缓存页面组件列表，避免响应式依赖导致的无限循环
+const cachedPageComponents = ref<CanvasComponent[]>([])
+
+// 初始化缓存的页面组件列表
+function initCachedPageComponents() {
+  if (props.context === 'page' && pageComponents.value.length > 0) {
+    cachedPageComponents.value = [...pageComponents.value]
+    console.log('🔧 缓存页面组件列表 - 组件数量:', cachedPageComponents.value.length)
+  }
+}
+
+// 监听pageComponents变化，但只在初始化时更新缓存
+watch(() => pageComponents.value, (newComponents) => {
+  if (props.context === 'page' && newComponents.length > 0 && cachedPageComponents.value.length === 0) {
+    cachedPageComponents.value = [...newComponents]
+    console.log('🔧 初始化缓存页面组件列表 - 组件数量:', cachedPageComponents.value.length)
+  }
+}, { immediate: true })
+
 // 本地状态
 const isLoading = ref(false)
 const listData = ref<any[]>([])
@@ -466,6 +485,9 @@ const sortDirection = ref<'asc' | 'desc' | null>(null)
 
 // 布尔选择器的响应式状态
 const booleanValue = ref<boolean | null>(null)
+
+// 分页数据加载状态锁定 - 防止无限循环
+const isLoadingPaginatedData = ref(false)
 
 // 初始化布尔值
 function initBooleanValue() {
@@ -578,9 +600,9 @@ async function handleButtonClick() {
       if (props.context === 'preview') {
         allComponents = props.allComponents.length > 0 ? props.allComponents : canvasStore.components
       } else {
-        // 独立页面模式：使用注入的页面组件列表
-        allComponents = pageComponents.value.length > 0 ? pageComponents.value : [props.component]
-        console.log('🔧 独立页面参数收集 - 组件数量:', allComponents.length)
+        // 独立页面模式：使用缓存的页面组件列表，避免响应式依赖
+        allComponents = cachedPageComponents.value.length > 0 ? cachedPageComponents.value : [props.component]
+        console.log('🔧 独立页面参数收集 - 组件数量:', allComponents.length, '(使用缓存)')
         console.log('🔧 独立页面参数收集 - 组件列表:', allComponents.map(c => ({
           id: c.id,
           type: c.config.type,
@@ -635,6 +657,16 @@ async function loadPaginatedData() {
   const config = props.component.config
   if (config.type !== 'paginated-table') return
   
+  // 🔒 防止无限循环：检查是否已经在加载中
+  if (isLoadingPaginatedData.value) {
+    console.log('🔒 分页数据正在加载中，跳过重复请求 - 组件ID:', props.component.id)
+    return
+  }
+  
+  // 设置锁定状态
+  isLoadingPaginatedData.value = true
+  console.log('🔧 开始加载分页数据 - 组件ID:', props.component.id, '上下文:', props.context)
+  
   try {
     if ('apiUrl' in config && config.apiUrl) {
       // 根据上下文获取组件列表
@@ -642,9 +674,9 @@ async function loadPaginatedData() {
       if (props.context === 'preview') {
         allComponents = props.allComponents.length > 0 ? props.allComponents : canvasStore.components
       } else {
-        // 独立页面模式：使用注入的页面组件列表
-        allComponents = pageComponents.value.length > 0 ? pageComponents.value : [props.component]
-        console.log('🔧 分页表格参数收集 - 组件数量:', allComponents.length)
+        // 独立页面模式：使用缓存的页面组件列表，避免响应式依赖
+        allComponents = cachedPageComponents.value.length > 0 ? cachedPageComponents.value : [props.component]
+        console.log('🔧 分页表格参数收集 - 组件数量:', allComponents.length, '(使用缓存)')
       }
       
       const response = await previewStore.callApiWithComponents(allComponents, config.apiUrl, 'POST', props.context)
@@ -663,6 +695,7 @@ async function loadPaginatedData() {
           totalPage: responseData.totalPage || 1,
           size: responseData.size || paginatedData.value.size
         }
+        console.log('🔧 分页数据加载成功 - 记录数:', responseData.list?.length || 0)
       }
     } else {
       // 生成模拟数据
@@ -683,9 +716,14 @@ async function loadPaginatedData() {
         totalPage: Math.ceil(50 / paginatedData.value.size),
         size: paginatedData.value.size
       }
+      console.log('🔧 分页模拟数据生成完成')
     }
   } catch (error) {
-    console.error('加载分页数据失败:', error)
+    console.error('🚨 加载分页数据失败:', error)
+  } finally {
+    // 🔓 确保状态总是被释放
+    isLoadingPaginatedData.value = false
+    console.log('🔧 分页数据加载完成，释放锁定状态 - 组件ID:', props.component.id)
   }
 }
 

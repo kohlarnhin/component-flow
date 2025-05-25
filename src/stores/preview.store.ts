@@ -27,12 +27,15 @@ export const usePreviewStore = defineStore('preview', () => {
   }
 
   // 获取组件值（支持默认值）
-  function getComponentValue(component: CanvasComponent): any {
+  function getComponentValue(component: CanvasComponent, context?: string): any {
     const config = component.config
+    
+    // 获取存储键前缀（根据上下文区分）
+    const storagePrefix = context === 'page' ? 'page_component_' : 'component_'
     
     // 处理多行文本输入
     if (config.type === 'multiline-text') {
-      const storageKey = `component_${component.id}_multilineValue`
+      const storageKey = `${storagePrefix}${component.id}_multilineValue`
       const storedValue = localStorage.getItem(storageKey)
       
       if (storedValue !== null && storedValue !== '') {
@@ -44,7 +47,7 @@ export const usePreviewStore = defineStore('preview', () => {
     
     // 处理布尔选择器
     if (config.type === 'boolean-select') {
-      const storageKey = `component_${component.id}_booleanValue`
+      const storageKey = `${storagePrefix}${component.id}_booleanValue`
       const storedValue = localStorage.getItem(storageKey)
       
       if (storedValue !== null) {
@@ -61,7 +64,7 @@ export const usePreviewStore = defineStore('preview', () => {
     }
     
     // 处理其他输入组件
-    const storageKey = `component_${component.id}_value`
+    const storageKey = `${storagePrefix}${component.id}_value`
     const storedValue = localStorage.getItem(storageKey)
     
     if (storedValue !== null && storedValue !== '') {
@@ -80,7 +83,7 @@ export const usePreviewStore = defineStore('preview', () => {
   }
 
   // 智能参数收集器
-  function collectParameters(components: CanvasComponent[]): CollectedParameters {
+  function collectParameters(components: CanvasComponent[], context?: string): CollectedParameters {
     console.log('📊 开始收集参数，组件数量:', components.length)
     
     const collected: CollectedParameters = {
@@ -113,7 +116,7 @@ export const usePreviewStore = defineStore('preview', () => {
       
       if (config.parameterConfig && config.parameterConfig.type !== 'none') {
         const paramConfig = config.parameterConfig
-        const componentValue = getComponentValue(component)
+        const componentValue = getComponentValue(component, context)
         
         console.log(`📊 组件 ${component.id} 参数配置:`, {
           type: paramConfig.type,
@@ -318,11 +321,12 @@ export const usePreviewStore = defineStore('preview', () => {
   }
 
   // API调用主函数
-  async function callApiWithComponents(components: CanvasComponent[], url: string, method: string = 'GET'): Promise<ApiResponse> {
+  async function callApiWithComponents(components: CanvasComponent[], url: string, method: string = 'GET', context?: string): Promise<ApiResponse> {
     console.log('🚀 开始API调用')
     console.log('🚀 URL:', url)
     console.log('🚀 方法:', method)
     console.log('🚀 组件数量:', components.length)
+    console.log('🚀 上下文:', context || 'preview')
 
     isLoading.value = true
 
@@ -338,7 +342,7 @@ export const usePreviewStore = defineStore('preview', () => {
 
     try {
       // 收集参数
-      const parameters = collectParameters(components)
+      const parameters = collectParameters(components, context)
       
       // 构建请求URL
       let requestUrl = buildRequestUrl(url, parameters)

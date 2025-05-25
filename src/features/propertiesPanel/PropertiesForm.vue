@@ -362,6 +362,7 @@ import { ref, computed, watch } from 'vue'
 import type { CanvasComponent, ComponentConfig, ComponentType } from '@/types/global.types'
 import { useCanvasStore } from '@/stores/canvas.store'
 import { useNotificationStore } from '@/stores/notification.store'
+import { getComponentTypeName } from '@/utils/componentMetadata'
 
 // 组件属性
 interface Props {
@@ -453,19 +454,5 @@ function handleAutoSave() {
   }
 }
 
-// 获取组件类型名称
-function getComponentTypeName(type: ComponentType): string {
-  const nameMap: Record<ComponentType, string> = {
-    'text-input': '文本输入',
-    'password-input': '密码输入',
-    'textarea': '文本域',
-    'button': '按钮',
-    'data-list': '数据列表',
-    'response-display': '响应展示',
-    'multiline-text': '多行文本输入',
-    'boolean-select': '是否选择器',
-    'paginated-table': '分页表格'
-  }
-  return nameMap[type] || '未知组件'
-}
+
 </script> 

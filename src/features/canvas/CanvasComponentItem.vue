@@ -119,6 +119,7 @@ import { ref } from 'vue'
 import type { CanvasComponent, ComponentType } from '@/types/global.types'
 import { useNotificationStore } from '@/stores/notification.store'
 import ComponentIcon from '@/components/ComponentIcon.vue'
+import { getComponentTypeName } from '@/utils/componentMetadata'
 
 // 组件属性
 interface Props {
@@ -144,18 +145,7 @@ const notificationStore = useNotificationStore()
 // 删除确认对话框状态
 const showDeleteDialog = ref(false)
 
-// 获取组件类型名称
-function getComponentTypeName(type: ComponentType): string {
-  const nameMap: Record<ComponentType, string> = {
-    'text-input': '文本输入',
-    'password-input': '密码输入',
-    'textarea': '文本域',
-    'button': '按钮',
-    'data-list': '数据列表',
-    'response-display': '响应展示'
-  }
-  return nameMap[type] || '未知组件'
-}
+
 
 // 处理删除
 function handleDelete() {

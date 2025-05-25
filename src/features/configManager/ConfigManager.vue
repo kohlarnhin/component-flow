@@ -36,7 +36,7 @@
                   :key="component.id"
                   class="inline-flex items-center px-2 py-1 rounded text-xs bg-white border text-gray-700"
                 >
-                  {{ getComponentIcon(component.config.type) }}
+                  <ComponentIcon :type="component.config.type" class="w-3 h-3 mr-1" />
                   {{ component.config.label }}
                 </span>
               </div>
@@ -150,6 +150,7 @@ import { useCanvasStore } from '@/stores/canvas.store'
 import { createComponentConfig } from '@/components/userComponents/templates/componentTemplates'
 import { createExampleConfig } from './exampleConfigs'
 import ExampleSelector from './ExampleSelector.vue'
+import ComponentIcon from '@/components/ComponentIcon.vue'
 import type { ComponentType } from '@/types/global.types'
 
 // 事件定义
@@ -323,19 +324,5 @@ function formatConfigPreview(): string {
   return JSON.stringify(config, null, 2)
 }
 
-// 获取组件图标
-function getComponentIcon(type: ComponentType): string {
-  const iconMap: Record<ComponentType, string> = {
-    'text-input': '📝',
-    'password-input': '🔒',
-    'textarea': '📄',
-    'button': '🔘',
-    'data-list': '📊',
-    'response-display': '📺',
-    'multiline-text': '📝',
-    'boolean-select': '☑️',
-    'paginated-table': '📋'
-  }
-  return iconMap[type] || '❓'
-}
+
 </script> 

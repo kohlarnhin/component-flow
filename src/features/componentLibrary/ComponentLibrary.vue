@@ -181,76 +181,14 @@
 import { ref, computed } from 'vue'
 import { componentTemplates } from '@/components/userComponents/templates/componentTemplates'
 import ComponentLibraryItem from './ComponentLibraryItem.vue'
+import { getAllComponentMetadata } from '@/utils/componentMetadata'
 
 // 响应式状态
 const searchQuery = ref('')
 const activeCategory = ref<string>('all')
 
-const componentTypes = [
-  { 
-    type: 'text-input', 
-    name: '文本输入', 
-    icon: 'text-input',
-    description: '单行文本输入框',
-    category: 'input'
-  },
-  { 
-    type: 'password-input', 
-    name: '密码输入', 
-    icon: 'password-input',
-    description: '密码输入框',
-    category: 'input'
-  },
-  { 
-    type: 'textarea', 
-    name: '文本域', 
-    icon: 'textarea',
-    description: '多行文本输入框',
-    category: 'input'
-  },
-  { 
-    type: 'multiline-text', 
-    name: '多行文本输入', 
-    icon: 'multiline-text',
-    description: '支持数组输入的多行文本框',
-    category: 'input'
-  },
-  { 
-    type: 'boolean-select', 
-    name: '是否选择器', 
-    icon: 'boolean-select',
-    description: '布尔值选择组件',
-    category: 'input'
-  },
-  { 
-    type: 'button', 
-    name: '请求按钮', 
-    icon: 'button',
-    description: 'API请求触发按钮',
-    category: 'action'
-  },
-  { 
-    type: 'data-list', 
-    name: '数据列表', 
-    icon: 'data-list',
-    description: '数据展示列表',
-    category: 'display'
-  },
-  { 
-    type: 'paginated-table', 
-    name: '分页表格', 
-    icon: 'paginated-table',
-    description: '支持分页和排序的数据表格',
-    category: 'display'
-  },
-  { 
-    type: 'response-display', 
-    name: '响应展示', 
-    icon: 'response-display',
-    description: 'API响应结果展示',
-    category: 'display'
-  }
-] as const
+// 从统一元数据获取组件类型
+const componentTypes = getAllComponentMetadata()
 
 // 分类定义
 const categories = [

@@ -43,16 +43,20 @@
                   <div class="text-xs text-gray-500 mb-2">包含组件：</div>
                   <div class="flex flex-wrap gap-2">
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200">
-                      📝 用户名输入
+                      <ComponentIcon type="text-input" class="w-3 h-3 mr-1" />
+                      用户名输入
                     </span>
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200">
-                      🔒 密码输入
+                      <ComponentIcon type="password-input" class="w-3 h-3 mr-1" />
+                      密码输入
                     </span>
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200">
-                      🔘 登录按钮
+                      <ComponentIcon type="button" class="w-3 h-3 mr-1" />
+                      登录按钮
                     </span>
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200">
-                      📺 响应展示
+                      <ComponentIcon type="response-display" class="w-3 h-3 mr-1" />
+                      响应展示
                     </span>
                   </div>
                 </div>
@@ -89,16 +93,20 @@
                   <div class="text-xs text-gray-500 mb-2">包含组件：</div>
                   <div class="flex flex-wrap gap-2">
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-50 text-green-700 border border-green-200">
-                      📝 编号名称搜索
+                      <ComponentIcon type="text-input" class="w-3 h-3 mr-1" />
+                      编号名称搜索
                     </span>
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-50 text-green-700 border border-green-200">
-                      📝 物料编号列表
+                      <ComponentIcon type="multiline-text" class="w-3 h-3 mr-1" />
+                      物料编号列表
                     </span>
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-50 text-green-700 border border-green-200">
-                      ☑️ 启用状态选择
+                      <ComponentIcon type="boolean-select" class="w-3 h-3 mr-1" />
+                      启用状态选择
                     </span>
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-50 text-green-700 border border-green-200">
-                      📋 泡茶配方表格
+                      <ComponentIcon type="paginated-table" class="w-3 h-3 mr-1" />
+                      泡茶配方表格
                     </span>
                   </div>
                 </div>
@@ -150,6 +158,8 @@
 </template>
 
 <script setup lang="ts">
+import ComponentIcon from '@/components/ComponentIcon.vue'
+
 // 事件定义
 interface Emits {
   close: []

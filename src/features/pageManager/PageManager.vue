@@ -55,7 +55,7 @@
                     :key="component.id"
                     class="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 text-gray-700"
                   >
-                    {{ getComponentIcon(component.config.type) }}
+                    <ComponentIcon :type="component.config.type" class="w-3 h-3 mr-1" />
                     {{ getComponentTypeName(component.config.type) }}
                   </span>
                   <span
@@ -165,7 +165,9 @@
                   >
                     <div class="flex items-center justify-between">
                       <div class="flex items-center space-x-3">
-                        <span class="text-lg">{{ getComponentIcon(component.config.type) }}</span>
+                        <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <ComponentIcon :type="component.config.type" class="w-5 h-5 text-gray-600" />
+                        </div>
                         <div>
                           <div class="font-medium text-gray-900">{{ component.config.label }}</div>
                           <div class="text-sm text-gray-500">{{ getComponentTypeName(component.config.type) }}</div>
@@ -207,6 +209,8 @@ import { ref, watch } from 'vue'
 import { usePagesStore } from '@/stores/pages.store'
 import { useCanvasStore } from '@/stores/canvas.store'
 import { usePreviewStore } from '@/stores/preview.store'
+import ComponentIcon from '@/components/ComponentIcon.vue'
+import { getComponentTypeName } from '@/utils/componentMetadata'
 import type { SavedPage, ComponentType } from '@/types/global.types'
 
 // 事件定义
@@ -279,31 +283,9 @@ function deletePage(page: SavedPage) {
   }
 }
 
-// 获取组件图标
-function getComponentIcon(type: ComponentType): string {
-  const iconMap: Record<ComponentType, string> = {
-    'text-input': '📝',
-    'password-input': '🔒',
-    'textarea': '📄',
-    'button': '🔘',
-    'data-list': '📊',
-    'response-display': '📺'
-  }
-  return iconMap[type] || '❓'
-}
 
-// 获取组件类型名称
-function getComponentTypeName(type: ComponentType): string {
-  const nameMap: Record<ComponentType, string> = {
-    'text-input': '文本输入',
-    'password-input': '密码输入',
-    'textarea': '文本域',
-    'button': '按钮',
-    'data-list': '数据列表',
-    'response-display': '响应展示'
-  }
-  return nameMap[type] || '未知组件'
-}
+
+
 
 // 格式化日期
 function formatDate(dateString: string): string {

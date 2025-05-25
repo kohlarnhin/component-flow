@@ -20,29 +20,58 @@
             </div>
           </div>
           <div class="flex items-center space-x-3">
-            <button
-              v-if="currentPageId"
-              @click="discardPage"
-              class="btn-danger flex items-center space-x-2"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16"></path>
-              </svg>
-              <span>废弃页面</span>
-            </button>
-            <button
-              v-if="currentPageId"
-              @click="openInNewTab"
-              class="btn-success flex items-center space-x-2"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M14 4h6m0 0v6m0-6L10 14"></path>
-              </svg>
-              <span>在新标签页打开</span>
-            </button>
+            <!-- 画布预览模式的按钮 -->
+            <template v-if="isCanvasPreview">
+              <button
+                v-if="currentPage && currentPage.components.length > 0"
+                @click="showSaveDialog = true"
+                class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <span>保存页面</span>
+              </button>
+              <button
+                v-if="savedPageId"
+                @click="openSavedPageInNewTab"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+                <span>在新标签页打开</span>
+              </button>
+            </template>
+            
+            <!-- 页面预览模式的按钮 -->
+            <template v-else>
+              <button
+                v-if="currentPageId"
+                @click="discardPage"
+                class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                <span>废弃页面</span>
+              </button>
+              <button
+                v-if="currentPageId"
+                @click="openInNewTab"
+                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+                <span>在新标签页打开</span>
+              </button>
+            </template>
+            
+            <!-- 关闭按钮 -->
             <button
               @click="closePreview"
-              class="btn-secondary"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -122,25 +151,38 @@
       </div>
     </div>
   </div>
+
+  <!-- 保存页面对话框 -->
+  <SavePageDialog
+    :visible="showSaveDialog"
+    @close="showSaveDialog = false"
+    @save="saveCanvasAsPage"
+    @open-in-new-tab="openSavedPageInNewTab"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, provide, watch } from 'vue'
 import { usePreviewStore } from '@/stores/preview.store'
 import { usePagesStore } from '@/stores/pages.store'
+import { useCanvasStore } from '@/stores/canvas.store'
 import { useNotificationStore } from '@/stores/notification.store'
 import PageRenderer from '@/components/PageRenderer.vue'
+import SavePageDialog from '@/components/SavePageDialog.vue'
 import type { SavedPage } from '@/types/global.types'
 
 // 状态管理
 const previewStore = usePreviewStore()
 const pagesStore = usePagesStore()
+const canvasStore = useCanvasStore()
 const notificationStore = useNotificationStore()
 
 // 本地状态
 const loading = ref(false)
 const currentPage = ref<SavedPage | null>(null)
 const currentPageId = ref<string | null>(null)
+const showSaveDialog = ref(false)
+const savedPageId = ref<string | null>(null)
 
 // 提供页面组件列表给子组件使用
 const pageComponents = computed(() => currentPage.value?.components || [])
@@ -152,14 +194,58 @@ watch(() => previewStore.isPreviewVisible, (visible) => {
     // 预览关闭时清理状态
     currentPage.value = null
     currentPageId.value = null
+    showSaveDialog.value = false
+    savedPageId.value = null
   }
 })
 
+// 预览模式判断
+const isCanvasPreview = computed(() => !currentPageId.value)
+const isPagePreview = computed(() => !!currentPageId.value)
+
 // 打开预览（由外部调用）
-async function openPreview(pageId: string) {
-  currentPageId.value = pageId
+async function openPreview(pageId?: string) {
+  currentPageId.value = pageId || null
   previewStore.openPreview()
-  await loadPage(pageId)
+  
+  if (pageId) {
+    // 预览已保存页面
+    await loadPage(pageId)
+  } else {
+    // 预览当前画布内容
+    await loadCanvasContent()
+  }
+}
+
+// 加载画布内容
+async function loadCanvasContent() {
+  loading.value = true
+  
+  try {
+    // 从画布获取当前组件
+    const canvasComponents = canvasStore.components
+    
+    if (canvasComponents.length > 0) {
+      // 创建临时页面对象用于预览
+      currentPage.value = {
+        id: 'canvas-preview',
+        name: '画布预览',
+        description: '当前画布内容的预览',
+        components: [...canvasComponents],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+      console.log('🔧 画布预览加载成功，组件数量:', canvasComponents.length)
+    } else {
+      currentPage.value = null
+      console.log('🔧 画布为空，无内容可预览')
+    }
+  } catch (error) {
+    console.error('加载画布内容失败:', error)
+    notificationStore.error('加载失败', '无法加载画布内容')
+  } finally {
+    loading.value = false
+  }
 }
 
 // 加载页面数据
@@ -216,6 +302,41 @@ function openInNewTab() {
   if (!currentPageId.value) return
   
   const pageUrl = `/page/${currentPageId.value}`
+  window.open(pageUrl, '_blank')
+  notificationStore.success('页面已在新标签页打开')
+}
+
+// 保存当前画布为页面
+async function saveCanvasAsPage(pageName: string, pageDescription?: string) {
+  if (!currentPage.value || !currentPage.value.components.length) {
+    notificationStore.error('保存失败', '没有可保存的内容')
+    return
+  }
+
+  try {
+    const pageId = await pagesStore.savePage(
+      pageName,
+      currentPage.value.components,
+      pageDescription
+    )
+    
+    savedPageId.value = pageId
+    notificationStore.success('页面保存成功', `页面"${pageName}"已保存`)
+    showSaveDialog.value = false
+    
+    return pageId
+  } catch (error) {
+    console.error('保存页面失败:', error)
+    notificationStore.error('保存失败', '无法保存页面，请重试')
+    throw error
+  }
+}
+
+// 在新标签页打开已保存的页面
+function openSavedPageInNewTab() {
+  if (!savedPageId.value) return
+  
+  const pageUrl = `/page/${savedPageId.value}`
   window.open(pageUrl, '_blank')
   notificationStore.success('页面已在新标签页打开')
 }
