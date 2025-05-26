@@ -154,7 +154,7 @@
                 <div
                   v-for="(component, index) in selectedPage.components"
                   :key="component.id"
-                  class="border border-gray-200 rounded-lg p-4"
+                  class="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
                 >
                   <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
@@ -166,8 +166,14 @@
                         <div class="text-sm text-gray-500">{{ getComponentTypeName(component.config.type) }}</div>
                       </div>
                     </div>
-                    <div class="text-sm text-gray-500">
-                      顺序: {{ index + 1 }}
+                    <div class="flex items-center space-x-3">
+                      <span class="text-sm text-gray-500">顺序: {{ index + 1 }}</span>
+                      <button
+                        @click="editComponent(component)"
+                        class="px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
+                      >
+                        编辑
+                      </button>
                     </div>
                   </div>
                   
@@ -194,6 +200,14 @@
       </div>
     </div>
   </div>
+
+  <!-- 组件编辑对话框 -->
+  <ComponentEditDialog
+    :visible="showEditDialog"
+    :component="editingComponent"
+    @close="closeEditDialog"
+    @save="handleSaveComponent"
+  />
 </template>
 
 <script setup lang="ts">
@@ -202,8 +216,9 @@ import { useRouter } from 'vue-router'
 import { usePagesStore } from '@/stores/pages.store'
 import { useNotificationStore } from '@/stores/notification.store'
 import ComponentIcon from '@/components/ComponentIcon.vue'
+import ComponentEditDialog from '@/components/ComponentEditDialog.vue'
 import { getComponentTypeName } from '@/utils/componentMetadata'
-import type { SavedPage, ComponentType } from '@/types/global.types'
+import type { SavedPage, ComponentType, CanvasComponent, ComponentConfig } from '@/types/global.types'
 
 // 状态管理
 const router = useRouter()
@@ -212,6 +227,10 @@ const notificationStore = useNotificationStore()
 
 // 选中的页面
 const selectedPage = ref<SavedPage | null>(null)
+
+// 组件编辑对话框状态
+const showEditDialog = ref(false)
+const editingComponent = ref<CanvasComponent | null>(null)
 
 // 查看页面详情
 function viewPage(page: SavedPage) {
@@ -263,9 +282,41 @@ async function deletePage(page: SavedPage) {
   }
 }
 
+// 编辑组件
+function editComponent(component: CanvasComponent) {
+  editingComponent.value = component
+  showEditDialog.value = true
+}
 
+// 关闭编辑对话框
+function closeEditDialog() {
+  showEditDialog.value = false
+  editingComponent.value = null
+}
 
+// 保存组件修改
+async function handleSaveComponent(component: CanvasComponent, newConfig: ComponentConfig) {
+  if (!selectedPage.value) {
+    notificationStore.error('保存失败', '没有选中的页面')
+    return
+  }
 
+  try {
+    await pagesStore.updatePageComponent(selectedPage.value.id, component.id, newConfig)
+    
+    // 更新本地显示的页面数据
+    const updatedPage = await pagesStore.getPage(selectedPage.value.id)
+    if (updatedPage) {
+      selectedPage.value = updatedPage
+    }
+    
+    notificationStore.success('组件已更新', '组件配置保存成功')
+    closeEditDialog()
+  } catch (error) {
+    console.error('保存组件配置失败:', error)
+    notificationStore.error('保存失败', '无法保存组件配置，请重试')
+  }
+}
 
 // 格式化日期
 function formatDate(dateString: string): string {

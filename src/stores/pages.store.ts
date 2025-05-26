@@ -125,6 +125,59 @@ export const usePagesStore = defineStore('pages', () => {
     }
   }
   
+  // 更新页面中的组件
+  async function updatePageComponent(pageId: string, componentId: string, newConfig: any): Promise<boolean> {
+    try {
+      isLoading.value = true
+      
+      const page = await getPage(pageId)
+      if (!page) {
+        throw new Error('页面不存在')
+      }
+      
+      // 找到要更新的组件
+      const componentIndex = page.components.findIndex(c => c.id === componentId)
+      if (componentIndex === -1) {
+        throw new Error('组件不存在')
+      }
+      
+      // 更新组件配置
+      const updatedComponents = [...page.components]
+      updatedComponents[componentIndex] = {
+        ...updatedComponents[componentIndex],
+        config: newConfig
+      }
+      
+      // 更新页面
+      const updatedPage: SavedPage = {
+        ...page,
+        components: updatedComponents,
+        updatedAt: new Date().toISOString()
+      }
+      
+      // 保存到文件
+      await FileStorageService.savePage(updatedPage)
+      
+      // 更新内存中的页面
+      const memoryIndex = savedPages.value.findIndex(p => p.id === pageId)
+      if (memoryIndex > -1) {
+        savedPages.value[memoryIndex] = updatedPage
+      }
+      
+      // 如果是当前查看的页面，也要更新
+      if (currentViewingPage.value?.id === pageId) {
+        currentViewingPage.value = updatedPage
+      }
+      
+      return true
+    } catch (error) {
+      console.error('更新页面组件失败:', error)
+      throw new Error('更新组件失败')
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
   // 工具函数
   function generatePageId(): string {
     return 'page_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
@@ -147,6 +200,7 @@ export const usePagesStore = defineStore('pages', () => {
     savePage,
     deletePage,
     getPage,
-    duplicatePage
+    duplicatePage,
+    updatePageComponent
   }
 }) 

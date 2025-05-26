@@ -1,9 +1,9 @@
 <template>
   <div 
     v-if="previewStore.isPreviewVisible"
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
   >
-    <div class="bg-white rounded-lg shadow-xl max-w-7xl w-full mx-4 max-h-[95vh] overflow-hidden flex flex-col">
+    <div class="bg-white rounded-lg shadow-xl w-full h-full overflow-hidden flex flex-col">
       <!-- 现代化头部 -->
       <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
         <div class="flex items-center justify-between">

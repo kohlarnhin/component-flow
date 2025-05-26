@@ -38,7 +38,7 @@
     </header>
 
     <!-- 页面内容 -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="w-full px-4 sm:px-6 lg:px-8 py-8 overflow-x-auto">
       <!-- 加载状态 -->
       <div v-if="loading" class="text-center py-12">
         <div class="inline-flex items-center space-x-2 text-gray-500">
