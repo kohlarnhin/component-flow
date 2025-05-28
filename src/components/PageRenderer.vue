@@ -14,5 +14,5 @@ interface Props {
   component: CanvasComponent
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 </script> 

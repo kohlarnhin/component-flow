@@ -242,7 +242,7 @@ export function createPaginatedTableExample(): CanvasComponent[] {
   const tableConfig = createComponentConfig('paginated-table')
   tableConfig.label = '茶配方管理表格'
   if ('apiUrl' in tableConfig) {
-    tableConfig.apiUrl = 'http://192.168.31.170:8888/svcApi/dpcp/material/tbm/list'
+    tableConfig.apiUrl = '/api/data/recipes'
   }
   if ('pageSize' in tableConfig) {
     tableConfig.pageSize = 10

@@ -179,7 +179,7 @@
     </div>
 
     <!-- 确认对话框 -->
-    <div v-if="showConfirmDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div v-if="showConfirmDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div class="p-6">
           <div class="flex items-center space-x-3 mb-4">
@@ -224,9 +224,8 @@
 import { ref, watch } from 'vue'
 import { useCanvasStore } from '@/stores/canvas.store'
 import { useNotificationStore } from '@/stores/notification.store'
-import { createComponentConfig } from '@/components/userComponents/templates/componentTemplates'
-import { createExampleConfig } from './exampleConfigs'
 import ExampleSelector from './ExampleSelector.vue'
+import type { ExampleConfig } from '@/types/global.types'
 
 // 状态管理
 const canvasStore = useCanvasStore()
@@ -465,26 +464,17 @@ function clearMessages() {
 }
 
 // 加载示例配置
-function loadExampleConfig(exampleType: 'oauth-login' | 'paginated-table') {
+function loadExampleConfig(example: ExampleConfig) {
   const doLoad = () => {
     try {
-      // 获取示例配置
-      const exampleComponents = createExampleConfig(exampleType)
-      
       // 清空画布并加载示例组件
       canvasStore.clearCanvas()
-      exampleComponents.forEach(component => {
+      example.components.forEach(component => {
         canvasStore.addComponent(component.config)
       })
       
       showExampleSelector.value = false
-      
-      const exampleNames = {
-        'oauth-login': 'OAuth2登录示例',
-        'paginated-table': '分页表格示例'
-      }
-      
-      notificationStore.success(`${exampleNames[exampleType]}已加载`, '示例配置已应用到画布')
+      notificationStore.success(`${example.name}已加载`, example.description || '示例配置已应用到画布')
       
     } catch (error) {
       console.error('加载示例配置失败:', error)
@@ -496,7 +486,7 @@ function loadExampleConfig(exampleType: 'oauth-login' | 'paginated-table') {
   if (canvasStore.hasComponents) {
     showConfirm(
       '加载示例配置',
-      '加载示例配置将替换当前画布内容，确定继续吗？',
+      `加载"${example.name}"将替换当前画布内容，确定继续吗？`,
       doLoad
     )
   } else {

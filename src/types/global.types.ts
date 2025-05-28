@@ -111,12 +111,15 @@ export interface CanvasComponent {
 
 // 已保存的页面
 export interface SavedPage {
-  id: string
+  id: number
   name: string
   description?: string
   components: CanvasComponent[]
+  thumbnail?: string
   createdAt: string
   updatedAt: string
+  tags?: string[]
+  is_public?: boolean
 }
 
 // API响应
@@ -144,4 +147,54 @@ export interface CollectedParameters {
   header: Record<string, any>
   urlencoded: Record<string, any>
   basicAuth: Record<string, any>
+}
+
+// 示例配置接口
+export interface ExampleConfig {
+  id: number
+  name: string
+  description?: string
+  category: string
+  components: CanvasComponent[]
+  icon?: string
+  isSystem: boolean
+  createdAt: string
+}
+
+// 组件属性文档
+export interface ComponentProperty {
+  name: string
+  type: string
+  description: string
+}
+
+// 组件示例
+export interface ComponentExample {
+  name: string
+  config: any
+}
+
+// 组件文档
+export interface ComponentDocumentation {
+  id: number
+  component_id: string
+  name: string
+  type: string
+  icon: string
+  description: string
+  category: string
+  config: ComponentConfig
+  is_system: boolean
+  created_at: string
+  updated_at: string
+  usage_count: number
+  last_used_at?: string
+  documentation: {
+    title: string
+    description: string
+    properties: ComponentProperty[]
+    usage: string
+    examples: ComponentExample[]
+    currentConfig: any
+  }
 } 

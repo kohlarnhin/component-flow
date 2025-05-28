@@ -211,7 +211,7 @@ import { useCanvasStore } from '@/stores/canvas.store'
 import { usePreviewStore } from '@/stores/preview.store'
 import ComponentIcon from '@/components/ComponentIcon.vue'
 import { getComponentTypeName } from '@/utils/componentMetadata'
-import type { SavedPage, ComponentType } from '@/types/global.types'
+import type { SavedPage } from '@/types/global.types'
 
 // 事件定义
 interface Emits {
@@ -263,29 +263,35 @@ function previewPage(page: SavedPage) {
 }
 
 // 复制页面
-function duplicatePage(page: SavedPage) {
-  const newPageId = pagesStore.duplicatePage(page.id)
-  if (newPageId) {
-    alert('页面复制成功！')
-  } else {
+async function duplicatePage(page: SavedPage) {
+  try {
+    const newPageId = await pagesStore.duplicatePage(page.id)
+    if (newPageId) {
+      alert('页面复制成功！')
+    } else {
+      alert('页面复制失败！')
+    }
+  } catch (error) {
+    console.error('复制页面失败:', error)
     alert('页面复制失败！')
   }
 }
 
 // 删除页面
-function deletePage(page: SavedPage) {
+async function deletePage(page: SavedPage) {
   if (confirm(`确定要删除页面"${page.name}"吗？此操作不可撤销。`)) {
-    pagesStore.deletePage(page.id)
-    if (selectedPage.value?.id === page.id) {
-      selectedPage.value = null
+    try {
+      await pagesStore.deletePage(page.id)
+      if (selectedPage.value?.id === page.id) {
+        selectedPage.value = null
+      }
+      alert('页面已删除！')
+    } catch (error) {
+      console.error('删除页面失败:', error)
+      alert('页面删除失败！')
     }
-    alert('页面已删除！')
   }
 }
-
-
-
-
 
 // 格式化日期
 function formatDate(dateString: string): string {

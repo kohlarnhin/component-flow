@@ -16,7 +16,7 @@
         <input
           type="text"
           :value="getCurrentValue()"
-          @input="updateValue($event.target.value)"
+          @input="updateValue(($event.target as HTMLInputElement)?.value)"
           :placeholder="component.config.placeholder"
           :required="component.config.required"
           :disabled="component.config.disabled"
@@ -40,7 +40,7 @@
         <input
           type="password"
           :value="getCurrentValue()"
-          @input="updateValue($event.target.value)"
+          @input="updateValue(($event.target as HTMLInputElement)?.value)"
           :placeholder="component.config.placeholder"
           :required="component.config.required"
           :disabled="component.config.disabled"
@@ -62,12 +62,12 @@
           </label>
         </div>
         <textarea
-          :value="getCurrentValue()"
-          @input="updateValue($event.target.value)"
+          :value="getCurrentValue() as string"
+          @input="updateValue(($event.target as HTMLTextAreaElement)?.value)"
           :placeholder="component.config.placeholder"
           :required="component.config.required"
           :disabled="component.config.disabled"
-          :rows="component.config.rows || 3"
+          :rows="(component.config as any).rows || 3"
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
         ></textarea>
       </div>
@@ -103,7 +103,7 @@
         </button>
         
         <!-- 请求配置预览 -->
-        <div v-if="hasRequestConfig" class="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+        <div v-if="hasRequestConfig()" class="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
           <div class="text-xs text-gray-600 space-y-1">
             <div class="flex items-center space-x-2">
               <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -244,7 +244,7 @@
         </div>
         <textarea
           :value="getMultilineValue()"
-          @input="updateMultilineValue($event.target.value)"
+          @input="updateMultilineValue(($event.target as HTMLTextAreaElement)?.value)"
           :placeholder="component.config.placeholder"
           :disabled="component.config.disabled"
           rows="4"
@@ -493,18 +493,10 @@ const previewStore = usePreviewStore()
 const canvasStore = useCanvasStore()
 
 // 注入页面组件列表（独立页面模式使用）
-const pageComponents = inject<ComputedRef<CanvasComponent[]>>('pageComponents', ref([]))
+const pageComponents = inject<ComputedRef<CanvasComponent[]>>('pageComponents', computed(() => []))
 
 // 缓存页面组件列表，避免响应式依赖导致的无限循环
 const cachedPageComponents = ref<CanvasComponent[]>([])
-
-// 初始化缓存的页面组件列表
-function initCachedPageComponents() {
-  if (props.context === 'page' && pageComponents.value.length > 0) {
-    cachedPageComponents.value = [...pageComponents.value]
-    console.log('🔧 缓存页面组件列表 - 组件数量:', cachedPageComponents.value.length)
-  }
-}
 
 // 监听pageComponents变化，但只在初始化时更新缓存
 watch(() => pageComponents.value, (newComponents) => {
@@ -519,7 +511,13 @@ const isLoading = ref(false)
 const listData = ref<any[]>([])
 
 // 分页表格数据和状态
-const paginatedData = ref({
+const paginatedData = ref<{
+  list: any[]
+  total: number
+  page: number
+  totalPage: number
+  size: number
+}>({
   list: [],
   total: 0,
   page: 1,
@@ -540,7 +538,7 @@ const booleanValue = ref<boolean | null>(null)
 const isLoadingPaginatedData = ref(false)
 
 // 防抖定时器
-const debounceTimer = ref<number | null>(null)
+const debounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
 // 初始化布尔值
 function initBooleanValue() {

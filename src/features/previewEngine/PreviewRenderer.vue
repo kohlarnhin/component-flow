@@ -10,6 +10,7 @@
 import { useCanvasStore } from '@/stores/canvas.store'
 import type { CanvasComponent } from '@/types/global.types'
 import ComponentRenderer from '@/components/ComponentRenderer.vue'
+import { inject } from 'vue'
 
 // 组件属性
 interface Props {
@@ -26,6 +27,7 @@ const emit = defineEmits<Emits>()
 
 // 状态管理
 const canvasStore = useCanvasStore()
+const requestData = inject<any>('requestData', {})
 
 // 获取所有组件用于参数收集
 const allComponents = canvasStore.components

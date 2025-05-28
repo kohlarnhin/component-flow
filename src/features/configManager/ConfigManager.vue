@@ -147,11 +147,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useCanvasStore } from '@/stores/canvas.store'
-import { createComponentConfig } from '@/components/userComponents/templates/componentTemplates'
-import { createExampleConfig } from './exampleConfigs'
 import ExampleSelector from './ExampleSelector.vue'
 import ComponentIcon from '@/components/ComponentIcon.vue'
-import type { ComponentType } from '@/types/global.types'
+import type { ExampleConfig } from '@/types/global.types'
 
 // 事件定义
 interface Emits {
@@ -276,7 +274,7 @@ function clearCanvas() {
 }
 
 // 加载示例配置
-function loadExampleConfig(exampleType: 'oauth-login' | 'paginated-table') {
+function loadExampleConfig(example: ExampleConfig) {
   if (canvasStore.hasComponents) {
     if (!confirm('加载示例配置将替换当前画布内容，确定继续吗？')) {
       showExampleSelector.value = false
@@ -285,35 +283,20 @@ function loadExampleConfig(exampleType: 'oauth-login' | 'paginated-table') {
   }
   
   try {
-    // 获取示例配置
-    const exampleComponents = createExampleConfig(exampleType)
-    
     // 清空画布并加载示例组件
     canvasStore.clearCanvas()
-    exampleComponents.forEach(component => {
+    example.components.forEach(component => {
       canvasStore.addComponent(component.config)
     })
     
     showExampleSelector.value = false
-    
-    const exampleNames = {
-      'oauth-login': 'OAuth2登录示例',
-      'paginated-table': '分页表格示例'
-    }
-    
-    alert(`${exampleNames[exampleType]}已加载！`)
+    alert(`${example.name}已加载！`)
     
   } catch (error) {
     console.error('加载示例配置失败:', error)
     alert('加载示例配置失败')
     showExampleSelector.value = false
   }
-}
-
-// 保留原有的loadSampleConfig函数作为备用（可以删除或重命名）
-function loadSampleConfig() {
-  // 直接调用OAuth登录示例
-  loadExampleConfig('oauth-login')
 }
 
 // 格式化配置预览
@@ -323,6 +306,5 @@ function formatConfigPreview(): string {
   const config = canvasStore.exportConfig()
   return JSON.stringify(config, null, 2)
 }
-
 
 </script> 

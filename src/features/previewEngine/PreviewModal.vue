@@ -106,26 +106,28 @@
           </div>
           
           <!-- 页面内容渲染 -->
-          <div v-else class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div v-else class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <!-- 页面信息 -->
-            <div v-if="currentPage.description" class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-              <h2 class="text-lg font-medium text-gray-900 mb-2">页面说明</h2>
-              <p class="text-gray-700">{{ currentPage.description }}</p>
+            <div v-if="currentPage.name" class="text-center mb-8">
+              <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ currentPage.name }}</h1>
+              <p v-if="currentPage.description" class="text-lg text-gray-600">{{ currentPage.description }}</p>
             </div>
 
             <!-- 组件渲染区域 -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div
-                v-for="component in currentPage.components"
-                :key="component.id"
-                :class="getComponentLayoutClass(component.config.type)"
-              >
-                <PageRenderer :component="component" />
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div
+                  v-for="component in currentPage.components"
+                  :key="component.id"
+                  :class="getComponentLayoutClass(component.config.type)"
+                >
+                  <PageRenderer :component="component" />
+                </div>
               </div>
             </div>
 
             <!-- 页面信息 -->
-            <div class="bg-white rounded-lg border border-gray-200 p-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 class="text-lg font-medium text-gray-900 mb-4">页面信息</h3>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
@@ -314,13 +316,15 @@ async function saveCanvasAsPage(pageName: string, pageDescription?: string) {
   }
 
   try {
-    const pageId = await pagesStore.savePage(
-      pageName,
-      currentPage.value.components,
-      pageDescription
-    )
+    const pageId = await pagesStore.savePage({
+      name: pageName,
+      description: pageDescription,
+      components: currentPage.value.components,
+      is_public: true,
+      tags: []
+    })
     
-    savedPageId.value = pageId
+    savedPageId.value = pageId.toString()
     notificationStore.success('页面保存成功', `页面"${pageName}"已保存`)
     showSaveDialog.value = false
     

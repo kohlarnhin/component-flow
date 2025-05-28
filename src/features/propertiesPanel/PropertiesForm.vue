@@ -350,7 +350,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { CanvasComponent, ComponentConfig, ComponentType } from '@/types/global.types'
+import type { CanvasComponent, ComponentConfig } from '@/types/global.types'
 import { useCanvasStore } from '@/stores/canvas.store'
 import { useNotificationStore } from '@/stores/notification.store'
 import { getComponentTypeName } from '@/utils/componentMetadata'

@@ -178,14 +178,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { componentTemplates } from '@/components/userComponents/templates/componentTemplates'
+import { ref, computed, onMounted } from 'vue'
+import { useComponentLibraryStore } from '@/stores/componentLibrary.store'
 import ComponentLibraryItem from './ComponentLibraryItem.vue'
 import { getAllComponentMetadata } from '@/utils/componentMetadata'
 
-// 响应式状态
+// 状态管理
+const componentLibraryStore = useComponentLibraryStore()
+
+// 初始化组件库
+onMounted(() => {
+  componentLibraryStore.init()
+})
+
+// 搜索状态
 const searchQuery = ref('')
-const activeCategory = ref<string>('all')
+const activeCategory = ref('all')
 
 // 从统一元数据获取组件类型
 const componentTypes = getAllComponentMetadata()
@@ -198,25 +206,26 @@ const categories = [
   { key: 'display', name: '展示类' }
 ]
 
-// 计算属性：筛选后的组件
+// 计算属性
 const filteredComponents = computed(() => {
-  let filtered = componentTypes
-
-  // 按分类筛选
+  let components = componentLibraryStore.componentTemplates
+  
+  // 分类筛选
   if (activeCategory.value !== 'all') {
-    filtered = filtered.filter(component => component.category === activeCategory.value)
+    components = components.filter(comp => comp.category === activeCategory.value)
   }
-
-  // 按搜索关键词筛选
+  
+  // 搜索筛选
   if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase().trim()
-    filtered = filtered.filter(component => 
-      component.name.toLowerCase().includes(query) ||
-      component.description.toLowerCase().includes(query)
+    const query = searchQuery.value.toLowerCase()
+    components = components.filter(comp => 
+      comp.name.toLowerCase().includes(query) ||
+      comp.description.toLowerCase().includes(query) ||
+      comp.type.toLowerCase().includes(query)
     )
   }
-
-  return filtered
+  
+  return components
 })
 
 // 计算属性：是否有活动筛选条件
@@ -226,8 +235,8 @@ const hasActiveFilters = computed(() => {
 
 // 获取分类组件数量
 function getCategoryCount(categoryKey: string): number {
-  if (categoryKey === 'all') return componentTypes.length
-  return componentTypes.filter(component => component.category === categoryKey).length
+  if (categoryKey === 'all') return componentLibraryStore.componentTemplates.length
+  return componentLibraryStore.componentTemplates.filter(component => component.category === categoryKey).length
 }
 
 // 获取分类名称

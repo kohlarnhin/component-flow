@@ -81,7 +81,7 @@
   </div>
 
   <!-- 删除确认对话框 -->
-  <div v-if="showDeleteDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div v-if="showDeleteDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]">
     <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
       <div class="p-6">
         <div class="flex items-center space-x-3 mb-4">
@@ -116,7 +116,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { CanvasComponent, ComponentType } from '@/types/global.types'
+import type { CanvasComponent } from '@/types/global.types'
 import { useNotificationStore } from '@/stores/notification.store'
 import ComponentIcon from '@/components/ComponentIcon.vue'
 import { getComponentTypeName } from '@/utils/componentMetadata'

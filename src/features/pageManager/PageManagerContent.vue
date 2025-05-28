@@ -188,6 +188,9 @@
                     <div v-if="'requestUrl' in component.config && component.config.requestUrl">
                       请求地址: {{ component.config.requestUrl }}
                     </div>
+                    <div v-if="'apiUrl' in component.config && component.config.apiUrl">
+                      API地址: {{ component.config.apiUrl }}
+                    </div>
                     <div v-if="component.config.required">
                       <span class="text-red-500">必填项</span>
                     </div>
@@ -212,16 +215,14 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { usePagesStore } from '@/stores/pages.store'
 import { useNotificationStore } from '@/stores/notification.store'
 import ComponentIcon from '@/components/ComponentIcon.vue'
 import ComponentEditDialog from '@/components/ComponentEditDialog.vue'
 import { getComponentTypeName } from '@/utils/componentMetadata'
-import type { SavedPage, ComponentType, CanvasComponent, ComponentConfig } from '@/types/global.types'
+import type { SavedPage, CanvasComponent, ComponentConfig } from '@/types/global.types'
 
 // 状态管理
-const router = useRouter()
 const pagesStore = usePagesStore()
 const notificationStore = useNotificationStore()
 

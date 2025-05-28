@@ -1,206 +1,303 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { SavedPage, CanvasComponent } from '@/types/global.types'
-import { FileStorageService } from '@/utils/fileStorage'
+import { pageService } from '@/utils/database'
+import type { CanvasComponent, SavedPage } from '@/types/global.types'
 
 export const usePagesStore = defineStore('pages', () => {
   // 状态
-  const savedPages = ref<SavedPage[]>([])
-  const currentViewingPage = ref<SavedPage | null>(null)
-  const isLoading = ref(false)
-  
+  const pages = ref<SavedPage[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+
   // 计算属性
-  const pagesCount = computed(() => savedPages.value.length)
+  const pagesCount = computed(() => pages.value.length)
   
-  // 初始化 - 从文件存储加载已保存的页面
-  async function initializePages() {
+  const savedPages = computed(() => pages.value)
+  
+  const publicPages = computed(() => 
+    pages.value.filter(page => page.is_public)
+  )
+  
+  const privatePages = computed(() => 
+    pages.value.filter(page => !page.is_public)
+  )
+
+  const recentPages = computed(() => 
+    [...pages.value]
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 5)
+  )
+
+  // 操作方法
+  async function loadPages() {
     try {
-      isLoading.value = true
-      const pages = await FileStorageService.getAllPages()
-      savedPages.value = pages
-    } catch (error) {
-      console.error('加载已保存页面失败:', error)
+      loading.value = true
+      error.value = null
+      pages.value = await pageService.getAllPages()
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '加载页面失败'
+      console.error('加载页面失败:', err)
     } finally {
-      isLoading.value = false
+      loading.value = false
     }
   }
-  
-  // 保存新页面
-  async function savePage(name: string, components: CanvasComponent[], description?: string): Promise<string> {
+
+  async function savePage(pageData: {
+    name: string
+    description?: string
+    components: CanvasComponent[]
+    thumbnail?: string
+    is_public?: boolean
+    tags?: string[]
+  }): Promise<number> {
     try {
-      isLoading.value = true
+      loading.value = true
+      error.value = null
       
-      const newPage: SavedPage = {
-        id: generatePageId(),
-        name,
-        description,
-        components: [...components],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
+      const pageId = await pageService.savePage({
+        name: pageData.name,
+        description: pageData.description || '',
+        components: pageData.components,
+        thumbnail: pageData.thumbnail,
+        is_public: pageData.is_public ?? true,
+        tags: pageData.tags || []
+      })
       
-      await FileStorageService.savePage(newPage)
-      savedPages.value.push(newPage)
+      // 重新加载页面列表
+      await loadPages()
       
-      return newPage.id
-    } catch (error) {
-      console.error('保存页面失败:', error)
-      throw new Error('保存页面失败')
+      return pageId as number
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '保存页面失败'
+      console.error('保存页面失败:', err)
+      throw err
     } finally {
-      isLoading.value = false
+      loading.value = false
     }
   }
-  
-  // 删除页面
-  async function deletePage(id: string) {
+
+  async function updatePage(id: number, pageData: Partial<{
+    name: string
+    description: string
+    components: CanvasComponent[]
+    thumbnail: string
+    is_public: boolean
+    tags: string[]
+  }>) {
     try {
-      isLoading.value = true
+      loading.value = true
+      error.value = null
       
-      await FileStorageService.deletePage(id)
-      const index = savedPages.value.findIndex(p => p.id === id)
-      if (index > -1) {
-        savedPages.value.splice(index, 1)
-      }
+      await pageService.updatePage(id, pageData)
       
-      // 如果删除的是当前查看的页面，清空当前页面
-      if (currentViewingPage.value?.id === id) {
-        currentViewingPage.value = null
-      }
-    } catch (error) {
-      console.error('删除页面失败:', error)
-      throw new Error('删除页面失败')
+      // 重新加载页面列表
+      await loadPages()
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '更新页面失败'
+      console.error('更新页面失败:', err)
+      throw err
     } finally {
-      isLoading.value = false
+      loading.value = false
     }
   }
-  
-  // 获取页面
-  async function getPage(id: string): Promise<SavedPage | null> {
+
+  async function deletePage(id: number) {
     try {
-      // 先从内存中查找
-      const memoryPage = savedPages.value.find(p => p.id === id)
-      if (memoryPage) {
-        return memoryPage
-      }
+      loading.value = true
+      error.value = null
       
-      // 从文件存储中加载
-      const page = await FileStorageService.loadPage(id)
-      if (page) {
-        // 添加到内存中
-        const existingIndex = savedPages.value.findIndex(p => p.id === id)
-        if (existingIndex === -1) {
-          savedPages.value.push(page)
-        }
-      }
+      await pageService.deletePage(id)
       
-      return page
-    } catch (error) {
-      console.error('获取页面失败:', error)
+      // 重新加载页面列表
+      await loadPages()
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '删除页面失败'
+      console.error('删除页面失败:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function getPageById(id: number): SavedPage | undefined {
+    return pages.value.find(page => page.id === id)
+  }
+
+  async function getPage(id: string | number): Promise<SavedPage | null> {
+    try {
+      const pageId = typeof id === 'string' ? parseInt(id) : id
+      return await pageService.getPageById(pageId)
+    } catch (err) {
+      console.error('获取页面失败:', err)
       return null
     }
   }
-  
+
+  async function searchPages(keyword: string): Promise<SavedPage[]> {
+    try {
+      if (!keyword.trim()) {
+        return pages.value
+      }
+      
+      return await pageService.searchPages(keyword)
+    } catch (err) {
+      console.error('搜索页面失败:', err)
+      return []
+    }
+  }
+
+  // 根据标签获取页面
+  function getPagesByTag(tag: string): SavedPage[] {
+    return pages.value.filter(page => 
+      page.tags && page.tags.includes(tag)
+    )
+  }
+
+  // 获取所有标签
+  const allTags = computed(() => {
+    const tags = new Set<string>()
+    pages.value.forEach(page => {
+      if (page.tags) {
+        page.tags.forEach(tag => tags.add(tag))
+      }
+    })
+    return Array.from(tags).sort()
+  })
+
   // 复制页面
-  async function duplicatePage(id: string): Promise<string | null> {
-    try {
-      isLoading.value = true
-      
-      const originalPage = await getPage(id)
-      if (!originalPage) {
-        throw new Error('原页面不存在')
-      }
-      
-      const newPageId = await savePage(
-        `${originalPage.name} (副本)`,
-        originalPage.components,
-        originalPage.description
-      )
-      
-      return newPageId
-    } catch (error) {
-      console.error('复制页面失败:', error)
-      return null
-    } finally {
-      isLoading.value = false
+  async function duplicatePage(id: number, newName?: string): Promise<number> {
+    const originalPage = getPageById(id)
+    if (!originalPage) {
+      throw new Error('页面不存在')
     }
+
+    const duplicatedName = newName || `${originalPage.name} (副本)`
+    
+    return await savePage({
+      name: duplicatedName,
+      description: originalPage.description,
+      components: JSON.parse(JSON.stringify(originalPage.components)), // 深拷贝
+      thumbnail: originalPage.thumbnail,
+      is_public: originalPage.is_public,
+      tags: originalPage.tags
+    })
   }
-  
-  // 更新页面中的组件
-  async function updatePageComponent(pageId: string, componentId: string, newConfig: any): Promise<boolean> {
-    try {
-      isLoading.value = true
-      
-      const page = await getPage(pageId)
-      if (!page) {
-        throw new Error('页面不存在')
-      }
-      
-      // 找到要更新的组件
-      const componentIndex = page.components.findIndex(c => c.id === componentId)
-      if (componentIndex === -1) {
-        throw new Error('组件不存在')
-      }
-      
-      // 更新组件配置
-      const updatedComponents = [...page.components]
-      updatedComponents[componentIndex] = {
-        ...updatedComponents[componentIndex],
-        config: newConfig
-      }
-      
-      // 更新页面
-      const updatedPage: SavedPage = {
-        ...page,
-        components: updatedComponents,
-        updatedAt: new Date().toISOString()
-      }
-      
-      // 保存到文件
-      await FileStorageService.savePage(updatedPage)
-      
-      // 更新内存中的页面
-      const memoryIndex = savedPages.value.findIndex(p => p.id === pageId)
-      if (memoryIndex > -1) {
-        savedPages.value[memoryIndex] = updatedPage
-      }
-      
-      // 如果是当前查看的页面，也要更新
-      if (currentViewingPage.value?.id === pageId) {
-        currentViewingPage.value = updatedPage
-      }
-      
-      return true
-    } catch (error) {
-      console.error('更新页面组件失败:', error)
-      throw new Error('更新组件失败')
-    } finally {
-      isLoading.value = false
-    }
-  }
-  
-  // 工具函数
-  function generatePageId(): string {
-    return 'page_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-  }
-  
+
   // 初始化
-  initializePages()
-  
+  async function init() {
+    await loadPages()
+  }
+
+  // 初始化页面（别名）
+  async function initializePages() {
+    await init()
+  }
+
+  // 批量操作
+  async function deletePages(ids: number[]) {
+    try {
+      loading.value = true
+      error.value = null
+      
+      for (const id of ids) {
+        await pageService.deletePage(id)
+      }
+      
+      await loadPages()
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '批量删除失败'
+      console.error('批量删除失败:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function updatePageVisibility(id: number, isPublic: boolean) {
+    const page = getPageById(id)
+    if (!page) {
+      throw new Error('页面不存在')
+    }
+    
+    await updatePage(id, { 
+      name: page.name || '未命名页面',
+      description: page.description || '',
+      components: page.components,
+      is_public: isPublic,
+      tags: page.tags || []
+    })
+  }
+
+  // 更新页面中的组件
+  async function updatePageComponent(pageId: number, componentId: string, newConfig: any) {
+    const page = getPageById(pageId)
+    if (!page) {
+      throw new Error('页面不存在')
+    }
+
+    const updatedComponents = page.components.map(comp => 
+      comp.id === componentId ? { ...comp, config: newConfig } : comp
+    )
+
+    // 确保必需字段不为空，避免数据库约束错误
+    await updatePage(pageId, { 
+      name: page.name || '未命名页面',
+      description: page.description || '',
+      components: updatedComponents,
+      is_public: page.is_public ?? true,
+      tags: page.tags || []
+    })
+  }
+
+  // 导入页面
+  async function importPage(pageConfig: {
+    name: string
+    description?: string
+    components: CanvasComponent[]
+    tags?: string[]
+  }): Promise<number> {
+    return await savePage({
+      ...pageConfig,
+      is_public: true
+    })
+  }
+
+  // 导出页面
+  function exportPage(id: number): SavedPage | null {
+    const page = getPageById(id)
+    return page ? { ...page } : null
+  }
+
   return {
     // 状态
-    savedPages,
-    currentViewingPage,
-    isLoading,
+    pages,
+    loading,
+    error,
     
     // 计算属性
     pagesCount,
+    savedPages,
+    publicPages,
+    privatePages,
+    recentPages,
+    allTags,
     
     // 方法
-    initializePages,
+    loadPages,
     savePage,
+    updatePage,
     deletePage,
+    getPageById,
     getPage,
+    searchPages,
+    getPagesByTag,
     duplicatePage,
-    updatePageComponent
+    deletePages,
+    updatePageVisibility,
+    updatePageComponent,
+    importPage,
+    exportPage,
+    init,
+    initializePages
   }
 }) 
